@@ -11,7 +11,7 @@ white_player = Group23Ai("white", board_size=(13, 13))
 
 try:
     with GomokuGameHandler(black_player, white_player, board_size=(13, 13)) as (black_round, white_round, board):
-        for _ in range(11 * 11 // 2):
+        for _ in range(13 * 13 // 2):
             black_round()
             time.sleep(0.3)
             white_round()
