@@ -1,13 +1,14 @@
 from goboard import Player, BoardInfo, GuiManager
 import random
 from math import *
-
+import time
 
 class Ai(Player):
     def __init__(self, color, **kwargs):
         super(Ai, self).__init__(color)
         self.state = GomokuState()
         self.state.color = color
+        self.action_number = 0
         try:
             size_x, size_y = kwargs['board_size']
             self.state.n = size_x
@@ -15,8 +16,12 @@ class Ai(Player):
             self.state.n = 13
 
     def get_action(self, board: BoardInfo) -> (int, int):
+        self.action_number = self.action_number + 1
         self.state.update_with_board_info(board)
-        move = UCT(rootstate=self.state, itermax=100, verbose=False)
+        maxtime = 2
+        if self.action_number == 1:
+            maxtime = 29
+        move = UCT(rootstate=self.state, maxtime=maxtime, verbose=False)
         print("Best Move: " + str(move))
         possible_x = int(move / self.state.n)
         possible_y = int(move % self.state.n)
@@ -209,14 +214,15 @@ class Node:
         return s
 
 
-def UCT(rootstate, itermax, verbose=False):
+def UCT(rootstate, maxtime, verbose=False):
     """ Conduct a UCT search for itermax iterations starting from rootstate.
         Return the best move from the rootstate.
         Assumes 2 alternating players (player 1 starts), with game results in the range [0.0, 1.0]."""
 
     rootnode = Node(state=rootstate)
-
-    for i in range(itermax):
+    end_time = time.time() + maxtime
+    while time.time() < end_time:
+    #for i in range(itermax):
         node = rootnode
         state = rootstate.Clone()
 
