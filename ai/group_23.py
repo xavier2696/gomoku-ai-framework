@@ -3,6 +3,24 @@ import random
 from math import *
 import time
 
+# stone value notations
+# '*' : where you put stone in this action.
+# '?' : don't know state.
+# '1' : our stone
+# '2' : enemy's stone
+# '0' : empty
+# 'x' : boundary
+values = {
+    '?*1?': 0,
+    '?*11?': 0,
+    '?*111?': 0,
+    '?*1111?': -10000,
+    '?*2?': 1,
+    '?*22?': 10,
+    '?*222?': 100,
+    '?*2222?': 1000,
+}
+
 class Ai(Player):
     def __init__(self, color, **kwargs):
         super(Ai, self).__init__(color)
@@ -16,11 +34,14 @@ class Ai(Player):
             self.state.n = 13
 
     def get_action(self, board: BoardInfo) -> (int, int):
+
+        self.get_alert(board)
+
         self.action_number = self.action_number + 1
         self.state.update_with_board_info(board)
         maxtime = 2
         if self.action_number == 1:
-            maxtime = 29
+            maxtime = 5
         move = UCT(rootstate=self.state, maxtime=maxtime, verbose=False)
         print("Best Move: " + str(move))
         possible_x = int(move / self.state.n)
@@ -37,6 +58,28 @@ class Ai(Player):
                         return x, y
                     else:
                         continue
+    def get_alert(self, board: BoardInfo):
+        defensive_actions, winning_actions = self.get_critical_actions(board)
+        print("ALERT")
+        print(defensive_actions)
+        print(winning_actions)
+
+    def get_critical_actions(self, board: BoardInfo):
+
+        deffensive_actions = []
+        winning_actions = []
+        for ((x, y), _) in board.steps:
+            for (dx, dy) in [(1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (-1, -1), (-1, 1), (1, -1)]:
+                if board.is_legal_action(x + dx, y + dy):
+                    weight = analysis_action(board, (x + dx, y + dy), self.color)
+                    if weight >= 100:
+                        deffensive_actions.append(((x + dx, y + dy), weight))
+
+                    if weight <= -1:
+                        winning_actions.append(((x + dx, y + dy), weight))
+
+        deffensive_actions = sorted(deffensive_actions, key=lambda x: x[1], reverse=True)
+        return deffensive_actions, winning_actions
 
 
 class GomokuState:
@@ -213,6 +256,43 @@ class Node:
             s += str(c) + "\n"
         return s
 
+def analysis_action(board: BoardInfo, action, color):
+    if color == "black":
+        is_empty = board.is_empty
+        is_our = board.is_black
+        is_enemy = board.is_white
+    else:
+        is_empty = board.is_empty
+        is_our = board.is_white
+        is_enemy = board.is_black
+
+    x, y = action
+    directions = [(1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (-1, -1), (-1, 1), (1, -1)]
+    weight = 0
+
+    for dx, dy in directions:
+        if is_our(x + dx, y + dy):
+            weight += values['?*1?']
+        if is_our(x + dx, y + dy) and is_our(x + 2 * dx, y + 2 * dy):
+            weight += values['?*11?']
+        if is_our(x + dx, y + dy) and is_our(x + 2 * dx, y + 2 * dy) and is_our(x + 3 * dx, y + 3 * dy):
+            weight += values['?*111?']
+        if is_our(x + dx, y + dy) and is_our(x + 2 * dx, y + 2 * dy) and is_our(x + 3 * dx, y + 3 * dy) and is_our(
+                        x + 4 * dx, y + 4 * dy):
+            weight += values['?*1111?']
+
+        if is_enemy(x + dx, y + dy):
+            weight += values['?*2?']
+        if is_enemy(x + dx, y + dy) and is_enemy(x + 2 * dx, y + 2 * dy):
+            weight += values['?*22?']
+        if is_enemy(x + dx, y + dy) and is_enemy(x + 2 * dx, y + 2 * dy) and is_enemy(x + 3 * dx, y + 3 * dy):
+            weight += values['?*222?']
+        if is_enemy(x + dx, y + dy) and \
+                is_enemy(x + 2 * dx, y + 2 * dy) and is_enemy(x + 3 * dx, y + 3 * dy) \
+                and is_enemy(x + 4 * dx, y + 4 * dy):
+            weight += values['?*2222?']
+
+    return weight
 
 def UCT(rootstate, maxtime, verbose=False):
     """ Conduct a UCT search for itermax iterations starting from rootstate.
