@@ -51,9 +51,9 @@ class GomokuState:
                 else:
                     if board_info.is_white(x, y):
                         if self.color == "white":
-                            self.board[int(y * self.n) + x] = 1
+                            self.board[int(x * self.n) + y] = 1
                         else:
-                            self.board[int(y * self.n) + x] = 2
+                            self.board[int(x * self.n) + y] = 2
         # print(self)
 
     def __init__(self):
