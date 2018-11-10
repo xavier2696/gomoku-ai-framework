@@ -18,7 +18,7 @@ class Ai(Player):
     def get_action(self, board: BoardInfo, timeout) -> (int, int):
         self.action_number = self.action_number + 1
         self.state.update_with_board_info(board)
-        maxtime = 5
+        maxtime = 2
         move = UCT(rootstate=self.state, maxtime=maxtime, verbose=False)
         print("Best Move: " + str(move))
         possible_x = int(move / self.state.n)
@@ -40,21 +40,27 @@ class Ai(Player):
 class GomokuState:
 
     def update_with_board_info(self, board_info):
-        self.board = [0 for element in range(self.n * self.n)]
+        new_board = [0 for element in range(self.n * self.n)]
         for x in range(0, board_info.size_x):
             for y in range(0, board_info.size_y):
                 if board_info.is_black(x, y):
                     if self.color == "black":
-                        self.board[int(x * self.n) + y] = 1
+                        new_board[int(x * self.n) + y] = 1
                     else:
-                        self.board[int(x * self.n) + y] = 2
+                        new_board[int(x * self.n) + y] = 2
                 else:
                     if board_info.is_white(x, y):
                         if self.color == "white":
-                            self.board[int(y * self.n) + x] = 1
+                            new_board[int(x * self.n) + y] = 1
                         else:
-                            self.board[int(y * self.n) + x] = 2
-        # print(self)
+                            new_board[int(x * self.n) + y] = 2
+
+        for i in range(self.n * self.n):
+            if self.board[i] != new_board[i] and new_board[i] == 2:
+                self.last_move_index = i
+        self.board = new_board
+        #print("Last Move: ", self.last_move_index)
+        #print(self)
 
     def __init__(self):
         self.color = "white"
@@ -65,6 +71,7 @@ class GomokuState:
         self.win_positions += self.generate_diagonal_win_positions()
         self.win_positions += self.generate_horizontal_win_positions()
         self.win_positions += self.generate_vertical_win_positions()
+        self.last_move_index = -1
 
     def Clone(self):
         """ Create a deep clone of this game state.
@@ -75,6 +82,7 @@ class GomokuState:
         st.n = self.n
         st.win_positions = self.win_positions
         st.color = self.color
+        st.last_move_index = self.last_move_index
         return st
 
     def DoMove(self, move):
@@ -84,14 +92,38 @@ class GomokuState:
         assert move >= 0 and move < (self.n * self.n) and move == int(move) and self.board[move] == 0
         self.playerJustMoved = 3 - self.playerJustMoved
         self.board[move] = self.playerJustMoved
+        #self.last_move_index = move
 
     def GetMoves(self):
         """ Get all possible moves from this state.
         """
-        # if self.player_has_won():
-        # print(self)
-        # return []
+        if self.player_has_won():
+            #print(self)
+            return []
         return [i for i in range(self.n * self.n) if self.board[i] == 0]
+
+    def GetAdjacentMoves(self):
+        if self.player_has_won():
+            return []
+        if self.last_move_index == -1:
+            return self.GetMoves()
+        radius = 3
+        adjacent_indexes = []
+        last_move_x = int(self.last_move_index/self.n)
+        last_move_y = int(self.last_move_index % self.n)
+        for x in range(last_move_x - radius, last_move_x + radius + 1):
+            if x >= 0 and x < self.n:
+                for y in range(last_move_y - radius, last_move_y + radius + 1):
+                    if y >= 0 and y < self.n:
+                        #print("Last move: %d,%d, Adjacent %d,%d" % (last_move_x, last_move_y, x, y))
+                        board_position = int(x * self.n) + y
+                        if board_position >=0 and board_position < (self.n * self.n) and self.board[board_position] == 0:
+                            adjacent_indexes += [board_position]
+        if len(adjacent_indexes) == 0:
+            return self.GetMoves()
+        #print("Last Move: ", self.last_move_index)
+        #print("Adjacent Indexes: ", adjacent_indexes)
+        return adjacent_indexes
 
     def GetResult(self, playerjm):
         """ Get the game result from the viewpoint of playerjm.
@@ -163,7 +195,7 @@ class Node:
         self.childNodes = []
         self.wins = 0
         self.visits = 0
-        self.untriedMoves = state.GetMoves()  # future child nodes
+        self.untriedMoves = state.GetAdjacentMoves()  # future child nodes
         self.playerJustMoved = state.playerJustMoved  # the only part of the state that the Node needs later
 
     def UCTSelectChild(self):
@@ -173,6 +205,9 @@ class Node:
         """
         s = sorted(self.childNodes, key=lambda c: c.wins / c.visits + sqrt(2 * log(self.visits) / c.visits))[-1]
         return s
+
+    #def selectAdjacentChild(self, board ,radius):
+
 
     def AddChild(self, m, s):
         """ Remove m from untriedMoves and add a new child node for this move.
@@ -236,8 +271,8 @@ def UCT(rootstate, maxtime, verbose=False):
             node = node.AddChild(m, state)  # add child and descend tree
 
         # Rollout - this can often be made orders of magnitude quicker using a state.GetRandomMove() function
-        while state.GetMoves() != []:  # while state is non-terminal
-            state.DoMove(random.choice(state.GetMoves()))
+        while state.GetAdjacentMoves() != []:  # while state is non-terminal
+            state.DoMove(random.choice(state.GetAdjacentMoves()))
 
         # Backpropagate
         while node != None:  # backpropagate from the expanded node and work back to the root node
@@ -246,9 +281,9 @@ def UCT(rootstate, maxtime, verbose=False):
             node = node.parentNode
 
     # Output some information about the tree - can be omitted
-    if (verbose):
-        print(rootnode.TreeToString(0))
-    else:
-        print(rootnode.ChildrenToString())
+    #if (verbose):
+        #print(rootnode.TreeToString(0))
+    #else:
+        #print(rootnode.ChildrenToString())
 
     return sorted(rootnode.childNodes, key=lambda c: c.visits)[-1].move  # return the move that was most visited
