@@ -43,6 +43,7 @@ class Ai(Player):
             return defensive_actions[0][0]
         if len(winning_actions) > 0:
             print("Offensive action")
+            #self.state.last_player_move = winning_actions[0][0][0] * self.state.n + winning_actions[0][0][1]
             return winning_actions[0][0]
         maxtime = 2
         move = UCT(rootstate=self.state, maxtime=maxtime, verbose=False)
@@ -100,7 +101,7 @@ class GomokuState:
             if self.board[i] != new_board[i] and new_board[i] == 2:
                 self.last_opponent_move = i
         self.board = new_board
-        #print(self)
+        print(self)
 
     def __init__(self):
         self.color = "white"
@@ -353,7 +354,7 @@ def analysis_action(board: BoardInfo, action, color):
             weight += values['?*1?']
         if is_our(x + dx, y + dy) and is_our(x + 2 * dx, y + 2 * dy):
             weight += values['?*11?']
-        if is_our(x + dx, y + dy) and is_our(x + 2 * dx, y + 2 * dy) and is_our(x + 3 * dx, y + 3 * dy):
+        if is_our(x + dx, y + dy) and is_our(x + 2 * dx, y + 2 * dy) and is_our(x + 3 * dx, y + 3 * dy) and (board.is_legal_action(x + 4 * dx, y + 4 * dy) or board.is_legal_action(x - 4 * dx, y - 4 * dy)):
             weight += values['?*111?']
         if is_our(x + dx, y + dy) and is_our(x + 2 * dx, y + 2 * dy) and is_our(x + 3 * dx, y + 3 * dy) and is_our(
                 x + 4 * dx, y + 4 * dy):
