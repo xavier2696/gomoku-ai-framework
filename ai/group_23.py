@@ -3,6 +3,24 @@ import random
 from math import *
 import time
 
+# stone value notations
+# '*' : where you put stone in this action.
+# '?' : don't know state.
+# '1' : our stone
+# '2' : enemy's stone
+# '0' : empty
+# 'x' : boundary
+values = {
+    '?*1?': 0,
+    '?*11?': 0,
+    '?*111?': 0,
+    '?*1111?': -10000,
+    '?*2?': 1,
+    '?*22?': 10,
+    '?*222?': 100,
+    '?*2222?': 1000,
+}
+
 class Ai(Player):
     def __init__(self, color, **kwargs):
         super(Ai, self).__init__(color)
@@ -18,6 +36,12 @@ class Ai(Player):
     def get_action(self, board: BoardInfo, timeout) -> (int, int):
         self.action_number = self.action_number + 1
         self.state.update_with_board_info(board)
+
+        defensive_actions, winning_actions = self.get_critical_actions(board)
+        if len(defensive_actions) > 0:
+            return defensive_actions[0][0]
+        if len(winning_actions) > 0:
+            return winning_actions[0][0]
         maxtime = 2
         move = UCT(rootstate=self.state, maxtime=maxtime, verbose=False)
         print("Best Move: " + str(move))
@@ -36,6 +60,20 @@ class Ai(Player):
                         return x, y
                     else:
                         continue
+
+    def get_critical_actions(self, board: BoardInfo):
+        defensive_actions = []
+        winning_actions = []
+        for ((x, y), _) in board.steps:
+            for (dx, dy) in [(1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (-1, -1), (-1, 1), (1, -1)]:
+                if board.is_legal_action(x + dx, y + dy):
+                    weight = analysis_action(board, (x + dx, y + dy), self.color)
+                    if weight >= 100:
+                        defensive_actions.append(((x + dx, y + dy), weight))
+                    if weight <= -1:
+                        winning_actions.append(((x + dx, y + dy), weight))
+        defensive_actions = sorted(defensive_actions, key=lambda x: x[1], reverse=True)
+        return defensive_actions, winning_actions
 
 
 class GomokuState:
@@ -204,7 +242,7 @@ class Node:
         self.childNodes = []
         self.wins = 0
         self.visits = 0
-        self.untriedMoves = state.GetAdjacentMoves(3)  # future child nodes
+        self.untriedMoves = state.GetAdjacentMoves(2)  # future child nodes
         #the parameter is the limit for how spaced out the next piece will be placed
         self.playerJustMoved = state.playerJustMoved  # the only part of the state that the Node needs later
 
@@ -295,3 +333,37 @@ def UCT(rootstate, maxtime, verbose=False):
         #print(rootnode.ChildrenToString())
 
     return sorted(rootnode.childNodes, key=lambda c: c.visits)[-1].move  # return the move that was most visited
+
+def analysis_action(board: BoardInfo, action, color):
+    if color == "black":
+        is_empty = board.is_empty
+        is_our = board.is_black
+        is_enemy = board.is_white
+    else:
+        is_empty = board.is_empty
+        is_our = board.is_white
+        is_enemy = board.is_black
+    x, y = action
+    directions = [(1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (-1, -1), (-1, 1), (1, -1)]
+    weight = 0
+    for dx, dy in directions:
+        if is_our(x + dx, y + dy):
+            weight += values['?*1?']
+        if is_our(x + dx, y + dy) and is_our(x + 2 * dx, y + 2 * dy):
+            weight += values['?*11?']
+        if is_our(x + dx, y + dy) and is_our(x + 2 * dx, y + 2 * dy) and is_our(x + 3 * dx, y + 3 * dy):
+            weight += values['?*111?']
+        if is_our(x + dx, y + dy) and is_our(x + 2 * dx, y + 2 * dy) and is_our(x + 3 * dx, y + 3 * dy) and is_our(
+                x + 4 * dx, y + 4 * dy):
+            weight += values['?*1111?']
+        if is_enemy(x + dx, y + dy):
+            weight += values['?*2?']
+        if is_enemy(x + dx, y + dy) and is_enemy(x + 2 * dx, y + 2 * dy):
+            weight += values['?*22?']
+        if is_enemy(x + dx, y + dy) and is_enemy(x + 2 * dx, y + 2 * dy) and is_enemy(x + 3 * dx, y + 3 * dy):
+            weight += values['?*222?']
+        if is_enemy(x + dx, y + dy) and \
+                is_enemy(x + 2 * dx, y + 2 * dy) and is_enemy(x + 3 * dx, y + 3 * dy) \
+                and is_enemy(x + 4 * dx, y + 4 * dy):
+            weight += values['?*2222?']
+    return weight
