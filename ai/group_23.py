@@ -13,7 +13,7 @@ import time
 values = {
     '?*1?': 0,
     '?*11?': 0,
-    '?*111?': 0,
+    '?*111?': -100,
     '?*1111?': -10000,
     '?*2?': 1,
     '?*22?': 10,
@@ -39,8 +39,10 @@ class Ai(Player):
 
         defensive_actions, winning_actions = self.get_critical_actions(board)
         if len(defensive_actions) > 0:
+            print("Defensive action")
             return defensive_actions[0][0]
         if len(winning_actions) > 0:
+            print("Offensive action")
             return winning_actions[0][0]
         maxtime = 2
         move = UCT(rootstate=self.state, maxtime=maxtime, verbose=False)
