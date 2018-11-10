@@ -15,12 +15,10 @@ class Ai(Player):
         except IndexError:
             self.state.n = 13
 
-    def get_action(self, board: BoardInfo) -> (int, int):
+    def get_action(self, board: BoardInfo, timeout) -> (int, int):
         self.action_number = self.action_number + 1
         self.state.update_with_board_info(board)
-        maxtime = 2
-        if self.action_number == 1:
-            maxtime = 29
+        maxtime = 5
         move = UCT(rootstate=self.state, maxtime=maxtime, verbose=False)
         print("Best Move: " + str(move))
         possible_x = int(move / self.state.n)
