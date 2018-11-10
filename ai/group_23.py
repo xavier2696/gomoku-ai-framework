@@ -58,9 +58,8 @@ class GomokuState:
 
         for i in range(self.n * self.n):
             if self.board[i] != new_board[i] and new_board[i] == 2:
-                self.last_move_index = i
+                self.last_opponent_move = i
         self.board = new_board
-        #print("Last Move: ", self.last_move_index)
         #print(self)
 
     def __init__(self):
@@ -107,24 +106,33 @@ class GomokuState:
     def GetAdjacentMoves(self, radius):
         if self.player_has_won():
             return []
-        if self.last_opponent_move == -1:
+        if self.last_opponent_move == -1 and self.last_player_move == -1:
             return self.GetMoves()
         adjacent_indexes = []
-        last_move_x = int(self.last_opponent_move/self.n)
-        last_move_y = int(self.last_opponent_move % self.n)
-        for x in range(last_move_x - radius, last_move_x + radius + 1):
-            if x >= 0 and x < self.n:
-                for y in range(last_move_y - radius, last_move_y + radius + 1):
-                    if y >= 0 and y < self.n:
-                        #print("Last move: %d,%d, Adjacent %d,%d" % (last_move_x, last_move_y, x, y))
-                        board_position = int(x * self.n) + y
-                        if board_position >=0 and board_position < (self.n * self.n) and self.board[board_position] == 0:
-                            adjacent_indexes += [board_position]
+        if self.last_opponent_move != -1:
+            opp_last_move_x = int(self.last_opponent_move / self.n)
+            opp_last_move_y = int(self.last_opponent_move % self.n)
+            adjacent_indexes += self.get_adjacent_moves(opp_last_move_x, opp_last_move_y, radius)
+
+        if self.last_player_move != -1:
+            player_last_move_x = int(self.last_player_move / self.n)
+            player_last_move_y = int(self.last_player_move % self.n)
+            adjacent_indexes += self.get_adjacent_moves(player_last_move_x, player_last_move_y, radius)
+
         if len(adjacent_indexes) == 0:
             return self.GetMoves()
-        #print("Last Move: ", self.last_move_index)
-        #print("Adjacent Indexes: ", adjacent_indexes)
         return adjacent_indexes
+
+    def get_adjacent_moves(self, x_move, y_move, radius):
+        adjacent_moves = []
+        for x in range(x_move - radius, x_move + radius + 1):
+            if x >= 0 and x < self.n:
+                for y in range(y_move - radius, y_move + radius + 1):
+                    if y >= 0 and y < self.n:
+                        board_position = int(x * self.n) + y
+                        if board_position >=0 and board_position < (self.n * self.n) and self.board[board_position] == 0:
+                            adjacent_moves += [board_position]
+        return adjacent_moves
 
     def GetResult(self, playerjm):
         """ Get the game result from the viewpoint of playerjm.
@@ -196,7 +204,8 @@ class Node:
         self.childNodes = []
         self.wins = 0
         self.visits = 0
-        self.untriedMoves = state.GetAdjacentMoves(2)  # future child nodes
+        self.untriedMoves = state.GetAdjacentMoves(3)  # future child nodes
+        #the parameter is the limit for how spaced out the next piece will be placed
         self.playerJustMoved = state.playerJustMoved  # the only part of the state that the Node needs later
 
     def UCTSelectChild(self):
@@ -206,8 +215,6 @@ class Node:
         """
         s = sorted(self.childNodes, key=lambda c: c.wins / c.visits + sqrt(2 * log(self.visits) / c.visits))[-1]
         return s
-
-    #def selectAdjacentChild(self, board ,radius):
 
 
     def AddChild(self, m, s):
