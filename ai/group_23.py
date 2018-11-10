@@ -25,6 +25,7 @@ class Ai(Player):
         possible_y = int(move % self.state.n)
         if board.is_legal_action(possible_x, possible_y):
             print("Move possible: %d,%d" % (possible_x, possible_y))
+            self.state.last_player_move = move
             return possible_x, possible_y
         else:
             print("Move not possible: %d,%d" % (possible_x, possible_y))
@@ -71,7 +72,8 @@ class GomokuState:
         self.win_positions += self.generate_diagonal_win_positions()
         self.win_positions += self.generate_horizontal_win_positions()
         self.win_positions += self.generate_vertical_win_positions()
-        self.last_move_index = -1
+        self.last_opponent_move = -1
+        self.last_player_move = -1
 
     def Clone(self):
         """ Create a deep clone of this game state.
@@ -82,7 +84,8 @@ class GomokuState:
         st.n = self.n
         st.win_positions = self.win_positions
         st.color = self.color
-        st.last_move_index = self.last_move_index
+        st.last_opponent_move = self.last_opponent_move
+        st.last_player_move = self.last_player_move
         return st
 
     def DoMove(self, move):
@@ -92,7 +95,6 @@ class GomokuState:
         assert move >= 0 and move < (self.n * self.n) and move == int(move) and self.board[move] == 0
         self.playerJustMoved = 3 - self.playerJustMoved
         self.board[move] = self.playerJustMoved
-        #self.last_move_index = move
 
     def GetMoves(self):
         """ Get all possible moves from this state.
@@ -102,15 +104,14 @@ class GomokuState:
             return []
         return [i for i in range(self.n * self.n) if self.board[i] == 0]
 
-    def GetAdjacentMoves(self):
+    def GetAdjacentMoves(self, radius):
         if self.player_has_won():
             return []
-        if self.last_move_index == -1:
+        if self.last_opponent_move == -1:
             return self.GetMoves()
-        radius = 3
         adjacent_indexes = []
-        last_move_x = int(self.last_move_index/self.n)
-        last_move_y = int(self.last_move_index % self.n)
+        last_move_x = int(self.last_opponent_move/self.n)
+        last_move_y = int(self.last_opponent_move % self.n)
         for x in range(last_move_x - radius, last_move_x + radius + 1):
             if x >= 0 and x < self.n:
                 for y in range(last_move_y - radius, last_move_y + radius + 1):
@@ -195,7 +196,7 @@ class Node:
         self.childNodes = []
         self.wins = 0
         self.visits = 0
-        self.untriedMoves = state.GetAdjacentMoves()  # future child nodes
+        self.untriedMoves = state.GetAdjacentMoves(2)  # future child nodes
         self.playerJustMoved = state.playerJustMoved  # the only part of the state that the Node needs later
 
     def UCTSelectChild(self):
@@ -271,8 +272,8 @@ def UCT(rootstate, maxtime, verbose=False):
             node = node.AddChild(m, state)  # add child and descend tree
 
         # Rollout - this can often be made orders of magnitude quicker using a state.GetRandomMove() function
-        while state.GetAdjacentMoves() != []:  # while state is non-terminal
-            state.DoMove(random.choice(state.GetAdjacentMoves()))
+        while state.GetAdjacentMoves(3) != []:  # while state is non-terminal
+            state.DoMove(random.choice(state.GetAdjacentMoves(3)))
 
         # Backpropagate
         while node != None:  # backpropagate from the expanded node and work back to the root node
