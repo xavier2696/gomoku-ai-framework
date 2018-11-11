@@ -12,12 +12,8 @@ MAX_Y = BOARD_SIZE[1]
 DIRECTIONS = [(1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (-1, -1), (-1, 1), (1, -1)]
 
 BLACK = 1
-EMPTY = 0
+TIE = EMPTY = 0
 WHITE = -1
-
-BLACK_WIN = 1
-TIE = 0
-WHITE_WIN = -1
 
 class Board:
     def __init__(self, board=None):
@@ -60,39 +56,102 @@ class State(Board):
         self.index = 1 # black is 1, white is 2, each Bij = (stone, b, w)
         self.result = None
 
-    # Can update self.result.
+    # Bubble might update self.result.
     def step(self, x, y):
+        assert self.result == None
         assert self.board[x][y][0] == 0
 
         self.board[x][y][0] = self.turn
-        self.updated = np.full((MAX_X, MAX_Y), False)
-        self.bubble(x, y)
+        self.swipeAll()
+
+        # bubble might have updated the result.
+        if self.result == None and self.tied():
+            self.result = TIE
+            return
 
         self.turn = -self.turn
         self.index = 3 - self.index
 
+    # swipeAll swipes all positions in all directions and updates the state
+    # saving for each possible move, the potential stack. And also saves the
+    # "best move" for each player, the most greedy move.
+    def swipeAll(self):
+        self.swipe((1, 0), [(0, y) for y in range(MAX_Y)])
+        self.swipe((-1, 0), [(12, y) for y in range(MAX_Y)])
+        self.swipe((0, 1), [(x, 0) for x in range(MAX_X)])
+        self.swipe((0, -1), [(x, 12) for x in range(MAX_X)])
+        self.swipe((1, 1), [(0, y) for y in range(MAX_Y)] + [(x, 0) for x in range(1, MAX_X)])
+        self.swipe((-1, -1), [(x, 12) for x in range(MAX_X)] + [(12, y) for y in range(0, MAX_Y - 1)])
+        self.swipe((-1, 1), [(x, 12) for x in range(MAX_X)] + [(12, y) for y in range(0, MAX_Y - 1)])
+        self.swipe((1, -1), [(0, y) for y in range(MAX_Y)] + [(x, 12) for x in range(1, MAX_X)])
+
+    def swipe(self, dir, roots):
+        for x, y in roots:
+            self.bstack = 0
+            self.wstack = 0
+            while 0 <= x < MAX_X and 0 <= y < MAX_Y:
+                self.board[x][y][1][dir] = self.bstack + 1
+                self.board[x][y][2][dir] = self.wstack + 1
+                if self.board[x][y][0] == BLACK:
+                    self.bstack += 1
+                    self.wstack = 0
+                elif self.board[x][y][0] == WHITE:
+                    self.bstack = 0
+                    self.wstack += 1
+                else:
+                    self.bstack = 0
+                    self.wstack = 0
+                x += dir[0]
+                y += dir[1]
+
     def bubble(self, x, y):
         for dx, dy in DIRECTIONS:
+            self.updated[x][y][(dx, dy)] = True
             _x, _y = x + dx, y + dy
             if _x < 0 or _x >= MAX_X or _y < 0 or _y >= MAX_Y:
                 continue # Board border reached.
-            print("updating", (_x, _y))
-            # self.board[x][y][self.index][(dx, dy)] = self.board[_x][_y][self.index][(dx, dy)] + 1
-            self.updated[x][y] = True
-            if not self.updated[_x][_y]:
-                if self.board[_x][_y][0] == EMPTY:
-                    self.board[_x][_y][self.index][(dx, dy)] = self.board[x][y][self.index][(dx, dy)] + 1
-                    self.updated[_x][_y] = True
-                elif self.board[_x][_y][0] == self.turn:
-                    # If we're stacking our own stones.
-                    self.bubble(_x, _y)
-                else:
-                    # If it's an enemy stone, there's nothing to do.
-                    pass
+            # Uncommenting the following line, lets us see
+            # which board positions are being updated after
+            # a call to board.step(action).
+            print("updating", (_x, _y), "direction", (dx, dy))
+            self.board[_x][_y][self.index][(dx, dy)] = self.board[x][y][self.index][(dx, dy)] + 1
+            self.updated[_x][_y][(dx, dy)] = True
+            # Check if 5 stones were stacked.
+            if self.board[_x][_y][self.index][(dx, dy)] == 6:
+                self.result = self.turn
+                return
+            if self.board[_x][_y][0] != -self.turn and (dx, dy) not in self.updated[_x, _y]:
+                # If we're stacking our own stones.
+                # Bubble the updates to update other ends
+                # of stacks.
+                self.bubble(_x, _y)
+
+    def tied(self):
+        for x in range(MAX_X):
+            for y in range(MAX_Y):
+                if self.board[x][y][0] == 0:
+                    return False
+        return True
 
     def evaluate():
+        # Evaluate function: f(state) = value
+        # value tells us how much this state is good to be in.
+        #
         # TODO: the other shat
         pass
+
+    def __str__(self):
+        stone = "○" if self.turn == BLACK else "●"
+        if self.result == BLACK:
+            result = "** ○ won! **"
+        elif self.result == WHITE:
+            result = "** ● won! **"
+        elif self.result == TIE:
+            result = "it's a tie!"
+        else:
+            result = ""
+        state = "turn: %s\t\t%s\n" % (stone, result)
+        return state + super(State, self).__str__()
 
 class AlphaBetaNode(State):
     def isLeaf(self):
