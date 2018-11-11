@@ -99,7 +99,6 @@ class Ai(Player):
         return weighted_actions
 
     def get_action(self, board: BoardInfo, timeout):
-
         possible_actions = self.get_possible_actions(board)
         weighted_actions = self.get_weighted_actions(board, possible_actions)
 

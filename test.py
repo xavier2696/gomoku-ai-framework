@@ -1,23 +1,17 @@
-from ai.alphabeta_ai import Board, State
+from goboard import GomokuGameHandler
+from goboard.judge import Win, Lose
+from goboard.logger import log
+from ai.easy_ai import Ai as EasyAi
+from ai.random_ai import Ai as RandomAi
+from ai.normal_ai import Ai as NormalAi
+from ai.alphabeta_ai import AlphaBetaAi
+#from ai.hard_ai2 import Ai as HardAi
+from ai.group_23 import Ai as Group23Ai
+import time
+
+# black = NormalAi("black", board_size=(13, 13))
+# white = Group23Ai("white", board_size=(13, 13))
+
+AIs = [EasyAi, RandomAi, NormalAi, AlphaBetaAi]
 
 if __name__ == "__main__":
-    board = State()
-    board.step(0, 0)
-    board.step(9, 3)
-    board.step(9, 2)
-    board.step(8, 3)
-    board.step(8, 2)
-    board.step(7, 3)
-    board.step(7, 2)
-    board.step(6, 3)
-    board.step(5, 3)
-    board.step(5, 2)
-    board.step(5, 4)
-    board.step(6, 2)
-    board.step(3, 10)
-    board.step(10, 10)
-    board.step(11, 11)
-    board.step(10, 3)
-    print("bbest:", board.bbest)
-    print("wbest:", board.wbest)
-    print(board)

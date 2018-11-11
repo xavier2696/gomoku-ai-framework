@@ -4,7 +4,7 @@ from copy import deepcopy
 
 # Minimax with alpha-beta Pruning
 # "ply" parameter (look ahead tree depth)
-AB_DEPTH = 20
+AB_DEPTH = 3
 
 BOARD_SIZE = (13, 13)
 MAX_X = BOARD_SIZE[0]
@@ -17,7 +17,7 @@ WHITE = -1
 
 class Board:
     def __init__(self, board=None):
-        if board == None:
+        if board is None:
             # 13 x 13 matrix B
             # Bij = (stone, potentialsBlack, potentialsWhite)
             # pb = [(potentialStackVal, origin), ..., (ps, origin)]
@@ -50,11 +50,17 @@ class Board:
         return _str
 
 class State(Board):
-    def __init__(self, board=None):
-        super(State, self).__init__(board)
-        self.turn = BLACK
-        self.index = 1 # black is 1, white is 2, each Bij = (stone, b, w)
-        self.result = None
+    def __init__(self, state=None):
+        if state is not None:
+            super(State, self).__init__(state.board)
+            self.turn = state.turn
+            self.result = state.result
+            if hasattr(state, "action"):
+                self.action = state.action
+        else:
+            super(State, self).__init__(None)
+            self.turn = BLACK
+            self.result = None
 
     # Bubble might update self.result.
     def step(self, x, y):
@@ -64,13 +70,7 @@ class State(Board):
         self.board[x][y][0] = self.turn
         self.swipeAll()
 
-        # swipeAll might have updated the result.
-        # if self.result == None and self.tied():
-        #     self.result = TIE
-        #     return
-
         self.turn = -self.turn
-        self.index = 3 - self.index
 
     # swipeAll swipes all positions in all directions and updates the state
     # saving for each possible move, the potential stack. And also saves the
@@ -124,19 +124,34 @@ class State(Board):
         if self.bbest == None and self.wbest == None:
             self.result = TIE
 
-    # def tied(self):
-    #     for x in range(MAX_X):
-    #         for y in range(MAX_Y):
-    #             if self.board[x][y][0] == 0:
-    #                 return False
-    #     return True
-
-    def evaluate():
+    def evaluate(self, myColor):
         # Evaluate function: f(state) = value
         # value tells us how much this state is good to be in.
-        #
-        # TODO: the other shat
-        pass
+        opColor = -myColor
+        isMyTurn = self.turn == myColor
+        # We're greedy, take the best action.
+        # The one that stack the most stone for us.
+        # Save in self.action so alphabeta can retrieve it later.
+        myBest, self.action = self.bbest if myColor == BLACK else self.wbest
+        opBest, _ = self.bbest if myColor != BLACK else self.wbest
+
+        if self.result == TIE:
+            return 0
+        elif self.result == myColor:
+            return 1000
+        elif self.result == opColor:
+            return -1000
+
+        if myBest == 5:
+            return 900 if isMyTurn else 400
+        elif myBest == 4:
+            return 300 if isMyTurn else 50
+        elif myBest == 3:
+            return 50
+        elif myBest == 2:
+            return 25
+        elif myBest == 1:
+            return 10
 
     def __str__(self):
         stone = "○" if self.turn == BLACK else "●"
@@ -159,22 +174,22 @@ class AlphaBetaNode(State):
         children = []
         for x in range(MAX_X):
             for y in range(MAX_Y):
-                if self.board[x][y][0] == 0:
-                    child = AlphaBetaNode(self.board)
+                if self.board[x][y][0] == 0 and (max(self.board[x][y][1].values()) > 1 or max(self.board[x][y][2].values()) > 1):
+                    child = AlphaBetaNode(self)
                     child.step(x, y)
                     child.action = (x, y)
                     children.append(child)
         return children
 
-def alphabeta(node, depth, alpha, beta, maximizingPlayer):
+def alphabeta(node, depth, alpha, beta, maximizingPlayer, myColor):
     if depth == 0 or node.isLeaf():
-        return (node.evaluate(), node.action)
+        return (node.evaluate(myColor), node.action)
     if maximizingPlayer:
         value = -float("inf")
         for child in node.children():
-            abValue, abAction = alphabeta(child, depth - 1, alpha, beta, False)
+            abValue, abAction = alphabeta(child, depth - 1, alpha, beta, False, myColor)
+            action = child.action if value > abValue else abAction
             value = max(value, abValue)
-            action = node.action if value > abValue else abAction
             alpha = max(alpha, value)
             if alpha >= beta:
                 #* β cut-off *#
@@ -183,8 +198,8 @@ def alphabeta(node, depth, alpha, beta, maximizingPlayer):
     else:
         value = float("inf")
         for child in node.children():
-            abValue, abAction = alphabeta(child, depth - 1, alpha, beta, True)
-            action = node.action if value > abValue else abAction
+            abValue, abAction = alphabeta(child, depth - 1, alpha, beta, True, myColor)
+            action = child.action if value > abValue else abAction
             value = min(value, abValue)
             beta = min(beta, value)
             if alpha >= beta:
@@ -193,21 +208,19 @@ def alphabeta(node, depth, alpha, beta, maximizingPlayer):
         return (value, action)
 
 class AlphaBetaAi(Player):
-    def __init__(self, color):
-        super(Ai, self).__init__(color)
+    def __init__(self, color, **kwarg):
+        super(AlphaBetaAi, self).__init__(color, **kwarg)
         self.state = State()
 
-    def get_action(self, board: BoardInfo) -> (int, int):
+    def get_action(self, board: BoardInfo, timeout) -> (int, int):
         try:
-            lastAction = self.convert_action(*board.steps[-1])
-            self.state.step(lastAction)
+            lastAction, color = board.steps[-1]
+            self.state.step(*lastAction)
         except IndexError:
-            # Game has just began.
-            pass
-        root = AlphaBetaNode(self.board)
-        value, action = alphabeta(root, AB_DEPTH, -float("inf"), float("inf"), True)
-        self.board.step(action)
-        return action
-
-    def convert_action(self, position, color):
-        return (position, BLACK if color == "black" else WHITE)
+            # Nothing on the board and we go first.
+            return 6, 6
+        root = AlphaBetaNode(self.state)
+        myColor = 1 if self.color == "black" else -1
+        value, action = alphabeta(root, AB_DEPTH, -float("inf"), float("inf"), True, myColor)
+        self.state.step(*action)
+        return (action[1], action[0])
