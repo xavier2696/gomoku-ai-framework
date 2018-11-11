@@ -16,4 +16,8 @@ if __name__ == "__main__":
     board.step(6, 2)
     board.step(3, 10)
     board.step(10, 10)
+    board.step(11, 11)
+    board.step(10, 3)
+    print("bbest:", board.bbest)
+    print("wbest:", board.wbest)
     print(board)
