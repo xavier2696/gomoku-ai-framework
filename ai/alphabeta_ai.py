@@ -4,7 +4,7 @@ from copy import deepcopy
 
 # Minimax with alpha-beta Pruning
 # "ply" parameter (look ahead tree depth)
-AB_DEPTH = 3
+AB_DEPTH = 2
 
 BOARD_SIZE = (13, 13)
 MAX_X = BOARD_SIZE[0]
@@ -215,7 +215,7 @@ class AlphaBetaAi(Player):
     def get_action(self, board: BoardInfo, timeout) -> (int, int):
         try:
             lastAction, color = board.steps[-1]
-            self.state.step(*lastAction)
+            self.state.step(lastAction[1], lastAction[0])
         except IndexError:
             # Nothing on the board and we go first.
             return 6, 6
