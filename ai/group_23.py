@@ -13,12 +13,18 @@ import time
 values = {
     '?*1?': 0,
     '?*11?': 0,
-    '?*111?': -100,
+    '?*111?': 0,
+    '?111*?': 0,
     '?*1111?': -10000,
+    '?1*111?': -10000,
+    '?11*11?': -10000,
     '?*2?': 1,
     '?*22?': 10,
     '?*222?': 100,
+    '?2*22?': 100,
     '?*2222?': 1000,
+    '?2*222?': 1000,
+    '?22*22?': 1000
 }
 
 class Ai(Player):
@@ -38,11 +44,14 @@ class Ai(Player):
         self.state.update_with_board_info(board)
 
         defensive_actions, winning_actions = self.get_critical_actions(board)
+        if len(winning_actions) > 0 and winning_actions[0][1] < -100:
+            print("Winning offensive action")
+            return winning_actions[0][0]
         if len(defensive_actions) > 0:
             print("Defensive action")
             return defensive_actions[0][0]
         if len(winning_actions) > 0:
-            print("Offensive action")
+            print("Offensive action", winning_actions[0][1])
             #self.state.last_player_move = winning_actions[0][0][0] * self.state.n + winning_actions[0][0][1]
             return winning_actions[0][0]
         maxtime = 2
@@ -354,19 +363,35 @@ def analysis_action(board: BoardInfo, action, color):
             weight += values['?*1?']
         if is_our(x + dx, y + dy) and is_our(x + 2 * dx, y + 2 * dy):
             weight += values['?*11?']
-        if is_our(x + dx, y + dy) and is_our(x + 2 * dx, y + 2 * dy) and is_our(x + 3 * dx, y + 3 * dy) and (board.is_legal_action(x + 4 * dx, y + 4 * dy) or board.is_legal_action(x - 4 * dx, y - 4 * dy)):
+        if is_our(x + dx, y + dy) and is_our(x + 2 * dx, y + 2 * dy) and is_our(x + 3 * dx, y + 3 * dy) \
+                and (board.is_legal_action(x + 4 * dx, y + 4 * dy) or board.is_legal_action(x - 4 * dx, y - 4 * dy)):
             weight += values['?*111?']
         if is_our(x + dx, y + dy) and is_our(x + 2 * dx, y + 2 * dy) and is_our(x + 3 * dx, y + 3 * dy) and is_our(
                 x + 4 * dx, y + 4 * dy):
             weight += values['?*1111?']
+        if is_our(x - dx, y - dy) and is_our(x + dx, y + dy) and is_our(x + 2 * dx, y + 2 * dy) \
+                and is_our(x + 3 * dx, y + 3 * dy):
+            weight += values['?1*111?']
+        if is_our(x - dx, y - dy) and is_our(x - 2 * dx, y - 2 * dy) and is_our(x + dx, y + dy) \
+                and is_our(x + 2 * dx, y + 2 * dy):
+            weight += values['?11*11?']
         if is_enemy(x + dx, y + dy):
             weight += values['?*2?']
         if is_enemy(x + dx, y + dy) and is_enemy(x + 2 * dx, y + 2 * dy):
             weight += values['?*22?']
         if is_enemy(x + dx, y + dy) and is_enemy(x + 2 * dx, y + 2 * dy) and is_enemy(x + 3 * dx, y + 3 * dy):
             weight += values['?*222?']
+        if is_enemy(x - dx, y - dy) and is_enemy(x + dx, y + dy) and is_enemy(x + 2 * dx, y + 2 * dy):
+            weight += values['?2*22?']
         if is_enemy(x + dx, y + dy) and \
                 is_enemy(x + 2 * dx, y + 2 * dy) and is_enemy(x + 3 * dx, y + 3 * dy) \
                 and is_enemy(x + 4 * dx, y + 4 * dy):
             weight += values['?*2222?']
+        if is_enemy(x - dx, y - dy) and is_enemy(x + dx, y + dy) and is_enemy(x + 2 * dx, y + 2 * dy) \
+                and is_enemy(x + 3 * dx, y + 3 * dy):
+            weight += values['?2*222?']
+        if is_enemy(x - dx, y - dy) and is_enemy(x - 2 * dx, y - 2 * dy) and is_enemy(x + dx, y + dy) \
+                and is_enemy(x + 2 * dx, y + 2 * dy):
+            weight += values['?22*22?']
+
     return weight
