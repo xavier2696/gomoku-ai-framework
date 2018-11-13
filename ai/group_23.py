@@ -363,8 +363,8 @@ def analysis_action(board: BoardInfo, action, color):
             weight += values['?*1?']
         if is_our(x + dx, y + dy) and is_our(x + 2 * dx, y + 2 * dy):
             weight += values['?*11?']
-        if is_our(x + dx, y + dy) and is_our(x + 2 * dx, y + 2 * dy) and is_our(x + 3 * dx, y + 3 * dy) \
-                and (board.is_legal_action(x + 4 * dx, y + 4 * dy) or board.is_legal_action(x - 4 * dx, y - 4 * dy)):
+        if is_our(x + dx, y + dy) and is_our(x + 2 * dx, y + 2 * dy) and is_our(x + 3 * dx, y + 3 * dy):
+                #and (board.is_legal_action(x + 4 * dx, y + 4 * dy) or board.is_legal_action(x - 4 * dx, y - 4 * dy)):
             weight += values['?*111?']
         if is_our(x + dx, y + dy) and is_our(x + 2 * dx, y + 2 * dy) and is_our(x + 3 * dx, y + 3 * dy) and is_our(
                 x + 4 * dx, y + 4 * dy):
