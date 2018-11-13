@@ -44,17 +44,17 @@ class Ai(Player):
         self.state.update_with_board_info(board)
 
         defensive_actions, winning_actions = self.get_critical_actions(board)
-        if len(winning_actions) > 0 and winning_actions[0][1] < -100:
+        if len(winning_actions) > 0:
             print("Winning offensive action")
             return winning_actions[0][0]
         if len(defensive_actions) > 0:
             print("Defensive action")
             return defensive_actions[0][0]
-        if len(winning_actions) > 0:
-            print("Offensive action", winning_actions[0][1])
+        #if len(winning_actions) > 0:
+            #print("Offensive action", winning_actions[0][1])
             #self.state.last_player_move = winning_actions[0][0][0] * self.state.n + winning_actions[0][0][1]
-            return winning_actions[0][0]
-        maxtime = 2
+            #return winning_actions[0][0]
+        maxtime = 5
         move = UCT(rootstate=self.state, maxtime=maxtime, verbose=False)
         print("Best Move: " + str(move))
         possible_x = int(move / self.state.n)
