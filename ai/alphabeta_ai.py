@@ -84,7 +84,7 @@ class State(Board):
         self.swipe((0, -1), [(x, 12) for x in range(MAX_X)])
         self.swipe((1, 1), [(0, y) for y in range(MAX_Y)] + [(x, 0) for x in range(1, MAX_X)])
         self.swipe((-1, -1), [(x, 12) for x in range(MAX_X)] + [(12, y) for y in range(0, MAX_Y - 1)])
-        self.swipe((-1, 1), [(x, 12) for x in range(MAX_X)] + [(12, y) for y in range(0, MAX_Y - 1)])
+        self.swipe((-1, 1), [(x, 0) for x in range(MAX_X)] + [(12, y) for y in range(0, MAX_Y - 1)])
         self.swipe((1, -1), [(0, y) for y in range(MAX_Y)] + [(x, 12) for x in range(1, MAX_X)])
 
     def swipe(self, dir, roots):
