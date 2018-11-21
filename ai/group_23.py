@@ -21,7 +21,9 @@ values = {
     '?*2?': 1,
     '?*22?': 10,
     '?*222?': 100,
+    '?*2220': 200,
     '?2*22?': 100,
+    '?2*220': 200,
     '?*2222?': 1000,
     '?2*222?': 1000,
     '?22*22?': 1000
@@ -41,19 +43,26 @@ class Ai(Player):
 
     def get_action(self, board: BoardInfo, timeout) -> (int, int):
         self.action_number = self.action_number + 1
-        self.state.update_with_board_info(board)
+        self.state.update_with_board_info(board, self.action_number)
 
-        defensive_actions, winning_actions = self.get_critical_actions(board)
+        critical_defensive_actions, winning_actions = self.get_critical_actions(board)
         if len(winning_actions) > 0:
             print("Winning offensive action")
             return winning_actions[0][0]
+        if len(critical_defensive_actions) > 0:
+            print("Critical Defensive action")
+            return critical_defensive_actions[0][0]
+
+        defensive_actions, offensive_actions = self.get_important_actions(board)
         if len(defensive_actions) > 0:
-            print("Defensive action")
-            return defensive_actions[0][0]
-        #if len(winning_actions) > 0:
-            #print("Offensive action", winning_actions[0][1])
-            #self.state.last_player_move = winning_actions[0][0][0] * self.state.n + winning_actions[0][0][1]
-            #return winning_actions[0][0]
+            action = defensive_actions[0]
+            print("Important Defensive action", action)
+            return action
+        if len(offensive_actions) > 0:
+            action = offensive_actions[0]
+            print("Important Offensive action", action)
+            return action
+
         maxtime = 5
         move = UCT(rootstate=self.state, maxtime=maxtime, verbose=False)
         print("Best Move: " + str(move))
@@ -65,7 +74,7 @@ class Ai(Player):
             return possible_x, possible_y
         else:
             print("Move not possible: %d,%d" % (possible_x, possible_y))
-            # default to easy ai for now, need another solution
+            # default to easy ai for now
             for x in range(0, board.size_x):
                 for y in range(0, board.size_y):
                     if board.is_legal_action(x, y):
@@ -87,10 +96,133 @@ class Ai(Player):
         defensive_actions = sorted(defensive_actions, key=lambda x: x[1], reverse=True)
         return defensive_actions, winning_actions
 
+    def get_positions(self):
+        positions = []
+        for i in range(0, self.state.n):
+            for j in range(0, self.state.n):
+                positions += [(i, j)]
+        return positions
+
+    def get_important_actions_for_state_board(self, board: BoardInfo):
+        is_empty = self.state.is_empty
+        is_our = self.state.is_our
+        is_enemy = self.state.is_enemy
+        positions = self.get_positions()
+        all_offensive_actions = []
+        all_defensive_actions = []
+        for (x, y) in positions:
+            if not is_empty(x,y):
+                continue
+            directions = [(1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (-1, -1), (-1, 1), (1, -1)]
+            offensive_actions = []
+            defensive_actions = []
+            for dx, dy in directions:
+                if is_our(x + dx, y + dy) and is_our(x + 2 * dx, y + 2 * dy) and is_our(x + 3 * dx, y + 3 * dy):
+                    for our_piece_x, our_piece_y in [(x + dx, y + dy), (x + 2 * dx, y + 2 * dy), (x + 3 * dx, y + 3 * dy)]:
+                        for dx2, dy2 in directions:
+                            if is_our(our_piece_x + dx2, our_piece_y + dy2) and \
+                                    is_our(our_piece_x + 2 * dx2, our_piece_y + 2 * dy2):
+                                offensive_actions += [(x, y)]
+                            if is_our(our_piece_x - dx2, our_piece_y - dy2) and \
+                                    is_our(our_piece_x + dx2, our_piece_y + dy2):
+                                offensive_actions += [(x, y)]
+                    if not is_empty(x - dx, y - dy) and not is_our(x - dx, y - dy) and \
+                            not is_empty(x + 4 * dx, y + 4 * dy) and not is_our(x + 4 * dx, y + 4 * dy):
+                        offensive_actions = []
+                if is_enemy(x + dx, y + dy) and is_enemy(x + 2 * dx, y + 2 * dy):
+                    for enemy_piece_x, enemy_piece_y in [(x + dx, y + dy), (x + 2 * dx, y + 2 * dy)]:
+                        for dx2, dy2 in directions:
+                            if is_enemy(enemy_piece_x + dx2, enemy_piece_y + dy2):
+                                defensive_actions += [(x, y)]
+                    if not is_empty(x - dx, y - dy) and not is_enemy(x - dx, y - dy) and \
+                            not is_empty(x + 3 * dx, y + 3 * dy) and not is_enemy(x + 3 * dx, y + 3 * dy):
+                        defensive_actions = []
+
+            if len(defensive_actions) > 0:
+                all_defensive_actions += defensive_actions
+            if len(offensive_actions) > 0:
+                all_offensive_actions += offensive_actions
+
+        return all_defensive_actions, all_offensive_actions
+
+    def get_important_actions(self, board: BoardInfo):
+        if self.color == "black":
+            is_empty = board.is_empty
+            is_our = board.is_black
+            is_enemy = board.is_white
+        else:
+            is_empty = board.is_empty
+            is_our = board.is_white
+            is_enemy = board.is_black
+        all_offensive_actions = []
+        all_defensive_actions = []
+        for (x, y) in self.get_positions():
+            if not is_empty(x, y):
+                continue
+            directions = [(1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (-1, -1), (-1, 1), (1, -1)]
+            offensive_actions = []
+            defensive_actions = []
+            for dx, dy in directions:
+                if is_our(x + dx, y + dy) and is_our(x + 2 * dx, y + 2 * dy) and is_our(x + 3 * dx, y + 3 * dy):
+                    for our_piece_x, our_piece_y in [(x + dx, y + dy), (x + 2 * dx, y + 2 * dy), (x + 3 * dx, y + 3 * dy)]:
+                        for dx2, dy2 in directions:
+                            if is_our(our_piece_x + dx2, our_piece_y + dy2) and \
+                                    is_our(our_piece_x + 2 * dx2, our_piece_y + 2 * dy2):
+                                offensive_actions += [(x, y)]
+                            if is_our(our_piece_x - dx2, our_piece_y - dy2) and \
+                                    is_our(our_piece_x + dx2, our_piece_y + dy2):
+                                offensive_actions += [(x, y)]
+                    if not is_empty(x - dx, y - dy) and not is_our(x - dx, y - dy) and \
+                            not is_empty(x + 4 * dx, y + 4 * dy) and not is_our(x + 4 * dx, y + 4 * dy):
+                        offensive_actions = []
+
+                if is_enemy(x + dx, y + dy) and is_enemy(x + 2 * dx, y + 2 * dy):
+                    enemy_piece_x, enemy_piece_y = (x + dx, y + dy)
+                    for dx2, dy2 in directions:
+                        if is_enemy(enemy_piece_x + dx2, enemy_piece_y + dy2) and enemy_piece_x + dx2 != x + 2 * dx\
+                                and enemy_piece_y + dy2 != y + 2 * dy:
+                            defensive_actions += [(x, y)]
+
+                    enemy_piece_x, enemy_piece_y = (x + 2 * dx, y + 2 * dy)
+                    for dx2, dy2 in directions:
+                        if is_enemy(enemy_piece_x + dx2, enemy_piece_y + dy2) and enemy_piece_x + dx2 != x + dx\
+                                and enemy_piece_y + dy2 != y + dy:
+                            defensive_actions += [(x, y)]
+
+                    if not is_empty(x - dx, y - dy) and not is_enemy(x - dx, y - dy) and \
+                            not is_empty(x + 3 * dx, y + 3 * dy) and not is_enemy(x + 3 * dx, y + 3 * dy):
+                        defensive_actions = []
+
+            if len(defensive_actions) > 0:
+                all_defensive_actions += defensive_actions
+            if len(offensive_actions) > 0:
+                all_offensive_actions += offensive_actions
+
+        return all_defensive_actions, all_offensive_actions
+
+
 
 class GomokuState:
 
-    def update_with_board_info(self, board_info):
+    def is_empty(self, x, y):
+        position = x * self.n + y
+        if position < 0 or position >= self.n * self.n:
+            return False
+        return self.board[position] == 0
+
+    def is_our(self, x, y):
+        position = x * self.n + y
+        if position < 0 or position >= self.n * self.n:
+            return False
+        return self.board[position] == 1
+
+    def is_enemy(self, x, y):
+        position = x * self.n + y
+        if position < 0 or position >= self.n * self.n:
+            return False
+        return self.board[position] == 2
+
+    def update_with_board_info(self, board_info, action_number):
         new_board = [0 for element in range(self.n * self.n)]
         for x in range(0, board_info.size_x):
             for y in range(0, board_info.size_y):
@@ -105,7 +237,6 @@ class GomokuState:
                             new_board[int(x * self.n) + y] = 1
                         else:
                             new_board[int(x * self.n) + y] = 2
-
         for i in range(self.n * self.n):
             if self.board[i] != new_board[i] and new_board[i] == 2:
                 self.last_opponent_move = i
@@ -380,9 +511,15 @@ def analysis_action(board: BoardInfo, action, color):
         if is_enemy(x + dx, y + dy) and is_enemy(x + 2 * dx, y + 2 * dy):
             weight += values['?*22?']
         if is_enemy(x + dx, y + dy) and is_enemy(x + 2 * dx, y + 2 * dy) and is_enemy(x + 3 * dx, y + 3 * dy):
-            weight += values['?*222?']
+            if is_empty(x + 4 * dx, y + 4 * dy):
+                weight += values['?*2220']
+            else:
+                weight += values['?*222?']
         if is_enemy(x - dx, y - dy) and is_enemy(x + dx, y + dy) and is_enemy(x + 2 * dx, y + 2 * dy):
-            weight += values['?2*22?']
+            if is_empty(x + 4 * dx, y + 4 * dy):
+                weight += values['?2*220']
+            else:
+                weight += values['?2*22?']
         if is_enemy(x + dx, y + dy) and \
                 is_enemy(x + 2 * dx, y + 2 * dy) and is_enemy(x + 3 * dx, y + 3 * dy) \
                 and is_enemy(x + 4 * dx, y + 4 * dy):
