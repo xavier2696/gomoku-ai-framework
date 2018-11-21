@@ -15,9 +15,9 @@ values = {
     '?*11?': 0,
     '?*111?': 0,
     '?111*?': 0,
-    '?*1111?': -10000,
-    '?1*111?': -10000,
-    '?11*11?': -10000,
+    '?*1111?': -10200,
+    '?1*111?': -10200,
+    '?11*11?': -10200,
     '?*2?': 1,
     '?*22?': 10,
     '?*222?': 100,
@@ -47,7 +47,7 @@ class Ai(Player):
 
         critical_defensive_actions, winning_actions = self.get_critical_actions(board)
         if len(winning_actions) > 0:
-            print("Winning offensive action")
+            print("Critical offensive action")
             return winning_actions[0][0]
         if len(critical_defensive_actions) > 0:
             print("Critical Defensive action")
